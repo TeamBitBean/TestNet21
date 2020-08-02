@@ -1,9 +1,5 @@
----
-title: Leveldb
----
+# Leveldb
 
-Leveldb
-=======
 
 Jeff Dean, Sanjay Ghemawat
 

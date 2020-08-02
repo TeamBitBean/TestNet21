@@ -1,10 +1,6 @@
 File format
 ===========
 
-[data block 1] [data block 2] … [data block N] [meta block 1] … [meta
-block K] [metaindex block] [index block] [Footer] (fixed size; starts at
-file_size - sizeof(Footer))
-
 The file contains internal pointers. Each such pointer is called a
 BlockHandle and contains the following information: offset: varint64
 size: varint64 See

@@ -2,9 +2,6 @@
 Leveldb
 =======
 
-Leveldb
-=======
-
 Jeff Dean, Sanjay Ghemawat
 
 The ``leveldb`` library provides a persistent key value store. Keys and

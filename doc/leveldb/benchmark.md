@@ -1,7 +1,3 @@
----
-title: LevelDB Benchmarks
----
-
 LevelDB Benchmarks
 ==================
 

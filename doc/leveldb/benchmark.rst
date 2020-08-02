@@ -2,8 +2,6 @@
 LevelDB Benchmarks
 ==================
 
-LevelDB Benchmarks
-==================
 
 Google, July 2011
 

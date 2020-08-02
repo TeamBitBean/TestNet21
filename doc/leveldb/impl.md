@@ -1,6 +1,5 @@
----
-title: Leveldb file layout and compactions
----
+# title: Leveldb file layout and compactions
+
 
 Files
 =====
