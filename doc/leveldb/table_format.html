@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>table_format</title>
+  <style>
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    span.underline{text-decoration: underline;}
+    div.column{display: inline-block; vertical-align: top; width: 50%;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    ul.task-list{list-style: none;}
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+  </style>
+  <!--[if lt IE 9]>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/html5shiv/3.7.3/html5shiv-printshiv.min.js"></script>
+  <![endif]-->
+</head>
+<body>
+<h1 id="file-format">File format</h1>
+<p><beginning_of_file> [data block 1] [data block 2] … [data block N] [meta block 1] … [meta block K] [metaindex block] [index block] [Footer] (fixed size; starts at file_size - sizeof(Footer)) <end_of_file></p>
+<p>The file contains internal pointers. Each such pointer is called a BlockHandle and contains the following information: offset: varint64 size: varint64 See https://developers.google.com/protocol-buffers/docs/encoding#varints for an explanation of varint64 format.</p>
+<ol type="1">
+<li><p>The sequence of key/value pairs in the file are stored in sorted order and partitioned into a sequence of data blocks. These blocks come one after another at the beginning of the file. Each data block is formatted according to the code in block_builder.cc, and then optionally compressed.</p></li>
+<li><p>After the data blocks we store a bunch of meta blocks. The supported meta block types are described below. More meta block types may be added in the future. Each meta block is again formatted using block_builder.cc and then optionally compressed.</p></li>
+<li><p>A “metaindex” block. It contains one entry for every other meta block where the key is the name of the meta block and the value is a BlockHandle pointing to that meta block.</p></li>
+<li><p>An “index” block. This block contains one entry per data block, where the key is a string &gt;= last key in that data block and before the first key in the successive data block. The value is the BlockHandle for the data block.</p></li>
+<li><p>At the very end of the file is a fixed length footer that contains the BlockHandle of the metaindex and index blocks as well as a magic number. metaindex_handle: char[p]; // Block handle for metaindex index_handle: char[q]; // Block handle for index padding: char[40-p-q]; // zeroed bytes to make fixed length // (40==2*BlockHandle::kMaxEncodedLength) magic: fixed64; // == 0xdb4775248b80fb57 (little-endian)</p></li>
+</ol>
+<h2 id="filter-meta-block">“filter” Meta Block</h2>
+<p>If a “FilterPolicy” was specified when the database was opened, a filter block is stored in each table. The “metaindex” block contains an entry that maps from “filter.<N>” to the BlockHandle for the filter block where “<N>” is the string returned by the filter policy’s “Name()” method.</p>
+<p>The filter block stores a sequence of filters, where filter i contains the output of FilterPolicy::CreateFilter() on all keys that are stored in a block whose file offset falls within the range</p>
+<pre><code>[ i*base ... (i+1)*base-1 ]</code></pre>
+<p>Currently, “base” is 2KB. So for example, if blocks X and Y start in the range [ 0KB .. 2KB-1 ], all of the keys in X and Y will be converted to a filter by calling FilterPolicy::CreateFilter(), and the resulting filter will be stored as the first filter in the filter block.</p>
+<p>The filter block is formatted as follows:</p>
+<pre><code> [filter 0]
+ [filter 1]
+ [filter 2]
+ ...
+ [filter N-1]
+
+ [offset of filter 0]                  : 4 bytes
+ [offset of filter 1]                  : 4 bytes
+ [offset of filter 2]                  : 4 bytes
+ ...
+ [offset of filter N-1]                : 4 bytes
+
+ [offset of beginning of offset array] : 4 bytes
+ lg(base)                              : 1 byte</code></pre>
+<p>The offset array at the end of the filter block allows efficient mapping from a data block offset to the corresponding filter.</p>
+<h2 id="stats-meta-block">“stats” Meta Block</h2>
+<p>This meta block contains a bunch of stats. The key is the name of the statistic. The value contains the statistic. TODO(postrelease): record following stats. data size index size key size (uncompressed) value size (uncompressed) number of entries number of data blocks</p>
+</body>
+</html>
