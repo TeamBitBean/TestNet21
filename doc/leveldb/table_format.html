@@ -1,0 +1,58 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+  <meta http-equiv="Content-Style-Type" content="text/css">
+  <title>table_format</title>
+  <meta name="Generator" content="Cocoa HTML Writer">
+  <meta name="CocoaVersion" content="1894.6">
+  <style type="text/css">
+    p.p2 {margin: 0.0px 0.0px 12.0px 0.0px; font: 12.0px Times; color: #000000; -webkit-text-stroke: #000000}
+    p.p4 {margin: 0.0px 0.0px 0.0px 0.0px; font: 12.0px Courier; color: #000000; -webkit-text-stroke: #000000}
+    p.p5 {margin: 0.0px 0.0px 0.0px 0.0px; font: 12.0px Courier; color: #000000; -webkit-text-stroke: #000000; min-height: 14.0px}
+    li.li2 {margin: 0.0px 0.0px 12.0px 0.0px; font: 12.0px Times; color: #000000; -webkit-text-stroke: #000000}
+    span.s1 {font-kerning: none}
+    span.s2 {-webkit-text-stroke: 0px #000000}
+    ol.ol1 {list-style-type: decimal}
+  </style>
+</head>
+<body>
+<h1 style="margin: 0.0px 0.0px 16.1px 0.0px; font: 24.0px Times; color: #000000; -webkit-text-stroke: #000000"><span class="s1"><b>File format</b></span></h1>
+<p class="p2"><span class="s1">The file contains internal pointers. Each such pointer is called a BlockHandle and contains the following information: offset: varint64 size: varint64 See https://developers.google.com/protocol-buffers/docs/encoding#varints for an explanation of varint64 format.</span></p>
+<ol class="ol1">
+  <li class="li2"><span class="s2"></span><span class="s1">The sequence of key/value pairs in the file are stored in sorted order and partitioned into a sequence of data blocks. These blocks come one after another at the beginning of the file. Each data block is formatted according to the code in block_builder.cc, and then optionally compressed.<br>
+</span></li>
+  <li class="li2"><span class="s2"></span><span class="s1">After the data blocks we store a bunch of meta blocks. The supported meta block types are described below. More meta block types may be added in the future. Each meta block is again formatted using block_builder.cc and then optionally compressed.<br>
+</span></li>
+  <li class="li2"><span class="s2"></span><span class="s1">A “metaindex” block. It contains one entry for every other meta block where the key is the name of the meta block and the value is a BlockHandle pointing to that meta block.<br>
+</span></li>
+  <li class="li2"><span class="s2"></span><span class="s1">An “index” block. This block contains one entry per data block, where the key is a string &gt;= last key in that data block and before the first key in the successive data block. The value is the BlockHandle for the data block.<br>
+</span></li>
+  <li class="li2"><span class="s2"></span><span class="s1">At the very end of the file is a fixed length footer that contains the BlockHandle of the metaindex and index blocks as well as a magic number. metaindex_handle: char[p]; // Block handle for metaindex index_handle: char[q]; // Block handle for index padding: char[40-p-q]; // zeroed bytes to make fixed length // (40==2*BlockHandle::kMaxEncodedLength) magic: fixed64; // == 0xdb4775248b80fb57 (little-endian)<br>
+</span></li>
+</ol>
+<h2 style="margin: 0.0px 0.0px 14.9px 0.0px; font: 18.0px Times; color: #000000; -webkit-text-stroke: #000000"><span class="s1"><b>“filter” Meta Block</b></span></h2>
+<p class="p2"><span class="s1">If a “FilterPolicy” was specified when the database was opened, a filter block is stored in each table. The “metaindex” block contains an entry that maps from “filter.” to the BlockHandle for the filter block where “” is the string returned by the filter policy’s “Name()” method.</span></p>
+<p class="p2"><span class="s1">The filter block stores a sequence of filters, where filter i contains the output of FilterPolicy::CreateFilter() on all keys that are stored in a block whose file offset falls within the range</span></p>
+<p class="p4"><span class="s1">[ i*base ... (i+1)*base-1 ]</span></p>
+<p class="p2"><span class="s1">Currently, “base” is 2KB. So for example, if blocks X and Y start in the range [ 0KB .. 2KB-1 ], all of the keys in X and Y will be converted to a filter by calling FilterPolicy::CreateFilter(), and the resulting filter will be stored as the first filter in the filter block.</span></p>
+<p class="p2"><span class="s1">The filter block is formatted as follows:</span></p>
+<p class="p4"><span class="s1"><span class="Apple-converted-space"> </span>[filter 0]</span></p>
+<p class="p4"><span class="s1"><span class="Apple-converted-space"> </span>[filter 1]</span></p>
+<p class="p4"><span class="s1"><span class="Apple-converted-space"> </span>[filter 2]</span></p>
+<p class="p4"><span class="s1"><span class="Apple-converted-space"> </span>...</span></p>
+<p class="p4"><span class="s1"><span class="Apple-converted-space"> </span>[filter N-1]</span></p>
+<p class="p5"><span class="s1"></span><br></p>
+<p class="p4"><span class="s1"><span class="Apple-converted-space"> </span>[offset of filter 0]<span class="Apple-converted-space">                  </span>: 4 bytes</span></p>
+<p class="p4"><span class="s1"><span class="Apple-converted-space"> </span>[offset of filter 1]<span class="Apple-converted-space">                  </span>: 4 bytes</span></p>
+<p class="p4"><span class="s1"><span class="Apple-converted-space"> </span>[offset of filter 2]<span class="Apple-converted-space">                  </span>: 4 bytes</span></p>
+<p class="p4"><span class="s1"><span class="Apple-converted-space"> </span>...</span></p>
+<p class="p4"><span class="s1"><span class="Apple-converted-space"> </span>[offset of filter N-1]<span class="Apple-converted-space">                </span>: 4 bytes</span></p>
+<p class="p5"><span class="s1"></span><br></p>
+<p class="p4"><span class="s1"><span class="Apple-converted-space"> </span>[offset of beginning of offset array] : 4 bytes</span></p>
+<p class="p4"><span class="s1"><span class="Apple-converted-space"> </span>lg(base)<span class="Apple-converted-space">                              </span>: 1 byte</span></p>
+<p class="p2"><span class="s1">The offset array at the end of the filter block allows efficient mapping from a data block offset to the corresponding filter.</span></p>
+<h2 style="margin: 0.0px 0.0px 14.9px 0.0px; font: 18.0px Times; color: #000000; -webkit-text-stroke: #000000"><span class="s1"><b>“stats” Meta Block</b></span></h2>
+<p class="p2"><span class="s1">This meta block contains a bunch of stats. The key is the name of the statistic. The value contains the statistic. TODO(postrelease): record following stats. data size index size key size (uncompressed) value size (uncompressed) number of entries number of data blocks</span></p>
+</body>
+</html>
